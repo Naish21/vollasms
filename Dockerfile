@@ -12,6 +12,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 ENV ORIGIN=to_process
 
-CMD ["python", "send_sms.py" ]
+CMD ["python", "main.py" ]
 
 # docker create --name sms-prod -e TEST=FALSE sms:0.4
