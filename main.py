@@ -89,14 +89,14 @@ def get_recipient_list(recipients: pd.DataFrame) -> list[dict]:
 
     ans2_list = recipients[['Nombre', 'Movil']].to_dict('split')['data']
     ans1_list = recipients[['Nombre', 'Telefono']].to_dict('split')['data']
-    ans1_dict = {i[1]:i[0] for i in ans1_list}
-    ans1_dict.update({i[1]:i[0] for i in ans2_list})
+    ans1_dict = {i[1]: i[0] for i in ans1_list}
+    ans1_dict.update({i[1]: i[0] for i in ans2_list})
     _ans = []
-    for _phone, _name in  ans1_dict.items():
+    for _phone, _name in ans1_dict.items():
         try:
-            if _phone[0] in ('6','7') and len(_phone) == 9:
+            if _phone[0] in ('6', '7') and len(_phone) == 9:
                 phonenumbers.parse(_phone, "ES")
-                _ans.append({'phone':_phone, 'name':_name.title()})
+                _ans.append({'phone': _phone, 'name': _name.title()})
         except phonenumbers.NumberParseException:
             print(1)
     return _ans
@@ -114,14 +114,14 @@ def send_sms(volla: Volla, recipients: list, text_to_send: str) -> list:
         sms_text = Template(text_to_send).substitute(nombre=recipient.get('name'))
         _info = volla.send_sms(recipient.get('phone'), sms_text)
         information.append(_info)
-        sleep(randint(1,5))
+        sleep(randint(1, 5))
     return information
 
 
 def send_to_recipients(volla: Volla, recipients: list, text_to_send: str, test: bool) -> list:
     """Añade un modo Test al envío de los sms"""
     rec = copy.deepcopy(recipients)
-    jorge = {'phone':'656764922', 'name':'Jorge'}
+    jorge = {'phone': '656764922', 'name': 'Jorge'}
     rec.append(jorge)
     if test:
         rec = [jorge]
@@ -144,7 +144,7 @@ def load_data_into_postgres(data: list[dict]) -> None:
     ans_table = Table(
         'envios', metadata,
         Column('outcome', String),
-        Column('id', String, primary_key = True),
+        Column('id', String, primary_key=True),
         Column('phone', String),
         Column('on', DateTime),
         Column('message', String)
@@ -189,11 +189,7 @@ if __name__ == "__main__":
             os.remove(filename)
 
     if not TEST:
-        try:
-            os.remove(os.path.join(os.getcwd(), os.environ.get('ORIGIN'), 'config.yaml'))
-        except Exception:
-            pass
+        os.remove(os.path.join(os.getcwd(), os.environ.get('ORIGIN'), 'config.yaml'))
 
     load_data_into_postgres(info)
     print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} -> Finished OK")
-
