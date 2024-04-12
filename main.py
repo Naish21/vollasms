@@ -41,28 +41,23 @@ def get_from_ftp(file: str) -> None:
     )
 
     with ssh.open_sftp() as sftp:
-        sftp.chdir('/upload')
+        sftp.chdir(os.environ.get('SFTP_FOLDER'))
         sftp.get(file, os.path.join(os.getcwd(), os.environ.get('ORIGIN'), file))
         sftp.remove(file)
 
 
 def get_config_file() -> dict:
-    """Miramos a ver si hay algún archivo de configuración"""
+    """Busca el archivo de configuración 'config.yaml' en el FTP"""
     get_from_ftp('config.yaml')
-
     yaml = YAML(typ='safe')
-
     with open(os.path.join(os.getcwd(), os.environ.get('ORIGIN'), 'config.yaml'), encoding='utf-8') as file:
         _config = yaml.load(file.read())
-
     return _config
 
 
 def get_files_to_process(config: dict) -> None:
-    """Download the files that are mentioned in config"""
-
+    """Downloads the files that are mentioned in the yaml config file"""
     files_to_get = [config[entry].get('filename') for entry in config]
-
     for _file in files_to_get:
         if _file is not None:
             get_from_ftp(_file)
@@ -98,7 +93,8 @@ def get_recipient_list(recipients: pd.DataFrame) -> list[dict]:
                 phonenumbers.parse(_phone, "ES")
                 _ans.append({'phone': _phone, 'name': _name.title()})
         except phonenumbers.NumberParseException:
-            print(1)
+            # El teléfono no es válido
+            pass
     return _ans
 
 
