@@ -14,4 +14,4 @@ ENV ORIGIN=to_process
 
 CMD ["python", "main.py" ]
 
-# docker create --name sms-prod -e TEST=FALSE sms:0.4
+# docker create --name sms-prod -e TEST=FALSE sms:0.6
