@@ -1,6 +1,6 @@
 """Modulo para envío de SMS automáticos"""
 
-__version__ = 0.5
+__version__ = "0.6"
 
 import base64
 import copy
@@ -76,24 +76,30 @@ def get_recipient_list(recipients: pd.DataFrame) -> list[dict]:
     - Comprueba que el primer número del teléfono es 6 o 7 y que la longitud es 9 digitos
     - Comprueba que phonenumbers da el teléfono como válido"""
     recipients.columns = [re.sub(r"[^0-9a-zA-Z]+", "", column).title() for column in recipients.columns]
-    if 'Telefono' not in recipients.columns or 'Movil' not in recipients.columns or 'Nombre' not in recipients.columns:
-        raise WrongFileException
-    for col in ['Telefono', 'Movil']:
-        recipients[col] = pd.to_numeric(recipients[col], errors='coerce')
-        recipients[col] = recipients[col].fillna(0).apply(int).apply(str)
-
-    ans2_list = recipients[['Nombre', 'Movil']].to_dict('split')['data']
-    ans1_list = recipients[['Nombre', 'Telefono']].to_dict('split')['data']
-    ans1_dict = {i[1]: i[0] for i in ans1_list}
-    ans1_dict.update({i[1]: i[0] for i in ans2_list})
+    replacement_dict = {'Telfono': 'Telefono', 'Mvil': 'Movil'}
+    for key, value in replacement_dict.items():
+        recipients.columns = list(map(lambda x: x.replace(key, value), recipients.columns))
+    if ('Telefono' not in recipients.columns and 'Movil' not in recipients.columns) or 'Nombre' not in recipients.columns:
+        raise ValueError('Sin columna de teléfono o nombre')
+    ans_list = []
+    for col in ('Telefono', 'Movil'):
+        try:
+            recipients[col] = pd.to_numeric(recipients[col], errors='coerce')
+            recipients[col] = recipients[col].fillna(0).apply(int).apply(str)
+            ans_list_tmp = recipients[['Nombre', col]].to_dict('split')['data']
+            ans_list.extend(ans_list_tmp)
+        except KeyError:
+            pass
+    if len(ans_list) == 0:
+        raise ValueError('No hay mensajes que enviar')
+    ans_dict = {i[1]: i[0] for i in ans_list}
     _ans = []
-    for _phone, _name in ans1_dict.items():
+    for _phone, _name in ans_dict.items():
         try:
             if _phone[0] in ('6', '7') and len(_phone) == 9:
                 phonenumbers.parse(_phone, "ES")
                 _ans.append({'phone': _phone, 'name': _name.title()})
         except phonenumbers.NumberParseException:
-            # El teléfono no es válido
             pass
     return _ans
 
@@ -178,6 +184,9 @@ if __name__ == "__main__":
         filename = os.path.join(os.getcwd(), os.environ.get('ORIGIN'), value.get('filename'))
         mensaje = value.get('mensaje')
         recipients = get_recipients(filename)
+        if not recipients:
+            print('Sin teléfonos a los que enviar')
+            sys.exit(1)
         _info = send_to_recipients(volla, recipients, mensaje, TEST)
         info.extend(_info)
 
