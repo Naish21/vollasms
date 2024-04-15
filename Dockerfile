@@ -19,5 +19,5 @@ CMD ["python3", "main.py" ]
 # PRODUCTION CONTAINER ==================================
 # docker create --name sms-prod -e TEST=FALSE sms:0.7
 # TEST CONTAINER ========================================
-# docker create --name sms-prod -e TEST=TRUE sms:0.7
+# docker create --name sms-test -e TEST=TRUE sms:0.7
 # =======================================================
