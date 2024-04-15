@@ -1,5 +1,6 @@
 import paramiko
 from datetime import datetime
+from typing import Union
 import uuid
 
 
@@ -15,12 +16,18 @@ class Volla:
         self.username = None
         self.__password = None
 
-    def connect(self, host, username, password) -> None:
+    def connect(self, host: str, username: str, password: str) -> None:
         """Connect to a SSH host"""
         self.host = host
         self.username = username
         self.__password = password
-        self.ssh.connect(hostname=host, username=username, password=password, look_for_keys=False, allow_agent=False)
+        self.ssh.connect(
+            hostname=host,
+            username=username,
+            password=password,
+            look_for_keys=False,
+            allow_agent=False,
+        )
 
     def __reconnect(self) -> None:
         """Reconnect to the SSH host"""
@@ -35,9 +42,9 @@ class Volla:
         """Test if the SSH connection is alive and active"""
         try:
             status = self.ssh.get_transport()
-            if 'cipher aes128-ctr, 128 bits' in str(status) and 'active' in str(status):
+            if "cipher aes128-ctr, 128 bits" in str(status) and "active" in str(status):
                 return True
-            elif 'unconnected' in str(status) or status is None:
+            elif "unconnected" in str(status) or status is None:
                 return False
         except paramiko.SSHException:
             self.__disconnect()
@@ -48,15 +55,21 @@ class Volla:
         return False
 
     @staticmethod
-    def build_response(outcome: str, phonenumber: str, _id: str, date_on: datetime, message: str) -> dict:
+    def build_response(
+        outcome: str,
+        phonenumber: int,
+        _id: Union[None, str],
+        date_on: datetime,
+        message: str,
+    ) -> dict:
         if _id is None:
-            _id = str(uuid.uuid4()).replace('-', '')
+            _id = str(uuid.uuid4()).replace("-", "")
         return {
-            'outcome': outcome,
-            'phone': phonenumber,
-            'id': _id,
-            'on': date_on,
-            'message': message,
+            "outcome": outcome,
+            "phone": phonenumber,
+            "id": _id,
+            "on": date_on,
+            "message": message,
         }
 
     def send_sms(self, phonenumber: int, message: str) -> dict:
@@ -64,21 +77,32 @@ class Volla:
         if not self.test():
             self.__reconnect()
         if len(message) > 160:
-            return self.build_response('MESSAGE_TOO_LONG', phonenumber, None, datetime.now(), message)
+            return self.build_response(
+                "MESSAGE_TOO_LONG", phonenumber, None, datetime.now(), message
+            )
         try:
             ssh_stdin, ssh_stdout, ssh_stderr = self.ssh.exec_command(
-                f'/usr/share/ofono/scripts/send-sms /ril_0 {phonenumber} "{message}" 0')
+                f'/usr/share/ofono/scripts/send-sms /ril_0 {phonenumber} "{message}" 0'
+            )
         except (paramiko.SSHException, ConnectionResetError):
             self.__disconnect()
-            return self.build_response('SSH_SESSION_LOST', phonenumber, None, datetime.now(), message)
-        _id = ''
+            return self.build_response(
+                "SSH_SESSION_LOST", phonenumber, None, datetime.now(), message
+            )
+        _id = ""
         if len(ssh_stderr.readlines()) > 0:
-            return self.build_response('ERROR_SENDING', phonenumber, None, datetime.now(), message)
+            return self.build_response(
+                "ERROR_SENDING", phonenumber, None, datetime.now(), message
+            )
         try:
             ans = ssh_stdout.readlines()
-            _id = ans[-1].strip().split('message_')[-1]
+            _id = ans[-1].strip().split("message_")[-1]
         except (NameError, KeyError, IndexError, AttributeError):
-            return self.build_response('ERROR_SENDING', phonenumber, None, datetime.now(), message)
-        if message == '':
-            return self.build_response('UNEXPECTED', phonenumber, _id, datetime.now(), message)
-        return self.build_response('OK', phonenumber, _id, datetime.now(), message)
+            return self.build_response(
+                "ERROR_SENDING", phonenumber, None, datetime.now(), message
+            )
+        if message == "":
+            return self.build_response(
+                "UNEXPECTED", phonenumber, _id, datetime.now(), message
+            )
+        return self.build_response("OK", phonenumber, _id, datetime.now(), message)
