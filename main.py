@@ -1,6 +1,6 @@
 """Modulo para envío de SMS automáticos"""
 
-__version__ = "0.7"
+__version__ = "0.8"
 
 import base64
 import copy
@@ -8,9 +8,7 @@ import os
 import re
 import sys
 from datetime import datetime
-from random import randint
 from string import Template
-from time import sleep
 
 import pandas as pd
 import paramiko
@@ -18,15 +16,10 @@ import phonenumbers
 import sqlalchemy
 from dotenv import load_dotenv
 from ruamel.yaml import YAML
+from smsapi.client import SmsApiComClient
 from sqlalchemy import Table, Column, String, DateTime
 
-from libs.volla import Volla
-
 load_dotenv(".env")
-
-
-class WrongFileException(Exception):
-    """El archivo no tiene las columnas necesarias"""
 
 
 def get_from_ftp(file: str) -> None:
@@ -106,8 +99,8 @@ def get_recipient_list(recipients: pd.DataFrame) -> list[dict]:
     for _phone, _name in ans_dict.items():
         try:
             if _phone[0] in ("6", "7") and len(_phone) == 9:
-                phonenumbers.parse(_phone, "ES")
-                _ans.append({"phone": _phone, "name": _name.title()})
+                parsed_phone = phonenumbers.parse(_phone, "ES")
+                _ans.append({"phone": str(parsed_phone.country_code) + str(parsed_phone.national_number), "name": _name.title()})
         except phonenumbers.NumberParseException:
             pass
     return _ans
@@ -118,18 +111,21 @@ def get_recipients(file: str) -> list[dict]:
     return get_recipient_list(read_csv_file(file))
 
 
-def send_sms(volla: Volla, recipients: list, text_to_send: str) -> list:
+def send_sms(recipients: list, text_to_send: str) -> list:
     """Envía un SMS"""
     information = []
     for recipient in recipients:
         sms_text = Template(text_to_send).substitute(nombre=recipient.get("name"))
-        _info = volla.send_sms(recipient.get("phone"), sms_text)
+        _info = send_smsapi(
+            apikey=os.environ.get('SMS_API_KEY'),
+            phonenumber=recipient.get("phone"),
+            sms_message=sms_text,
+        )
         information.append(_info)
-        sleep(randint(1, 5))
     return information
 
 
-def send_to_recipients(volla: Volla, recipients: list, text_to_send: str, test: bool) -> list:
+def send_to_recipients(recipients: list, text_to_send: str, test: bool) -> list:
     """Añade un modo Test al envío de los sms"""
     jorge = {"phone": "656764922", "name": "Jorge"}
     if test:
@@ -137,7 +133,7 @@ def send_to_recipients(volla: Volla, recipients: list, text_to_send: str, test: 
     else:
         rec = copy.deepcopy(recipients)
         rec.append(jorge)
-    return send_sms(volla, recipients=rec, text_to_send=text_to_send)
+    return send_sms(recipients=rec, text_to_send=text_to_send)
 
 
 def load_data_into_postgres(data: list[dict]) -> None:
@@ -168,27 +164,54 @@ def load_data_into_postgres(data: list[dict]) -> None:
         conn.commit()
 
 
-def get_volla_connection():
-    try:
-        volla = Volla()
-        _host = os.environ.get("VOLLA_HOST")
-        _username = os.environ.get("VOLLA_USER")
-        _password = os.environ.get("VOLLA_PASS")
-        volla.connect(_host, _username, _password)
-        return volla
-    except TimeoutError:
-        print("Connection to VollaPhone Error -> Exiting")
-        sys.exit(1)
+def clear_text(input_text: str) -> str:
+    """Quita los caracteres especiales y limita la longitud a 160 caracteres"""
+    input_text = input_text.replace('á', 'a')
+    input_text = input_text.replace('é', 'e')
+    input_text = input_text.replace('í', 'i')
+    input_text = input_text.replace('ó', 'o')
+    input_text = input_text.replace('ú', 'u')
+    input_text = input_text.replace('º', 'o')
+    input_text = input_text.replace('ª', 'a')
+    input_text = re.sub('[^a-zA-Z0-9!¡?¿\'=()/&%$\" ]', '', input_text)
+    return input_text[0:160]
+
+def send_smsapi(apikey: str, phonenumber: str, sms_message: str) -> dict:
+    """Envía un SMS utilizando la api de SMS-API
+    https://ssl.smsapi.com/react/oauth/manage
+    """
+    id, error, date_sent, points, number = '', None, None, 0.0, None
+    client = SmsApiComClient(access_token=apikey)
+
+    # send single sms
+    results = client.sms.send(to=phonenumber, message=clear_text(sms_message))
+
+    for result in results:
+        id = result.id
+        number = result.phonenumber
+        points = result.points
+        error = result.error
+        date_sent = datetime.fromtimestamp(result.date_sent)
+
+    return {
+        "outcome": "OK",
+        "phone": number,
+        "id": id,
+        "on": date_sent,
+        "message": error,
+    }
 
 
 if __name__ == "__main__":
     _config = {}
 
-    volla = get_volla_connection()
-
-    TEST = False if os.environ.get("TEST", "TRUE") != "TRUE" else True
+    TEST = os.environ.get("TEST") == "TRUE"
     if TEST:
-        _info = send_to_recipients(volla, [], os.environ.get('TEST_MESSAGE'), TEST)
+        _info = send_smsapi(
+            apikey=os.environ.get('SMS_API_KEY'),
+            phonenumber='34656764922',
+            sms_message=os.environ.get('TEST_MESSAGE'),
+        )
         print('SMS de prueba enviado')
         sys.exit(0)
 
@@ -207,7 +230,7 @@ if __name__ == "__main__":
         if not recipients:
             print("Sin teléfonos a los que enviar")
             sys.exit(1)
-        _info = send_to_recipients(volla, recipients, mensaje, TEST)
+        _info = send_to_recipients(recipients, mensaje, TEST)
         info.extend(_info)
 
         if not TEST:
