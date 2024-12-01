@@ -100,7 +100,13 @@ def get_recipient_list(recipients: pd.DataFrame) -> list[dict]:
         try:
             if _phone[0] in ("6", "7") and len(_phone) == 9:
                 parsed_phone = phonenumbers.parse(_phone, "ES")
-                _ans.append({"phone": str(parsed_phone.country_code) + str(parsed_phone.national_number), "name": _name.title()})
+                _ans.append(
+                    {
+                        "phone": str(parsed_phone.country_code)
+                        + str(parsed_phone.national_number),
+                        "name": _name.title(),
+                    }
+                )
         except phonenumbers.NumberParseException:
             pass
     return _ans
@@ -117,7 +123,7 @@ def send_sms(recipients: list, text_to_send: str) -> list:
     for recipient in recipients:
         sms_text = Template(text_to_send).substitute(nombre=recipient.get("name"))
         _info = send_smsapi(
-            apikey=os.environ.get('SMS_API_KEY'),
+            apikey=os.environ.get("SMS_API_KEY"),
             phonenumber=recipient.get("phone"),
             sms_message=sms_text,
         )
@@ -166,21 +172,22 @@ def load_data_into_postgres(data: list[dict]) -> None:
 
 def clear_text(input_text: str) -> str:
     """Quita los caracteres especiales y limita la longitud a 160 caracteres"""
-    input_text = input_text.replace('á', 'a')
-    input_text = input_text.replace('é', 'e')
-    input_text = input_text.replace('í', 'i')
-    input_text = input_text.replace('ó', 'o')
-    input_text = input_text.replace('ú', 'u')
-    input_text = input_text.replace('º', 'o')
-    input_text = input_text.replace('ª', 'a')
-    input_text = re.sub('[^a-zA-Z0-9!¡?¿\'=()/&%$\" ]', '', input_text)
+    input_text = input_text.replace("á", "a")
+    input_text = input_text.replace("é", "e")
+    input_text = input_text.replace("í", "i")
+    input_text = input_text.replace("ó", "o")
+    input_text = input_text.replace("ú", "u")
+    input_text = input_text.replace("º", "o")
+    input_text = input_text.replace("ª", "a")
+    input_text = re.sub("[^a-zA-Z0-9!¡?¿'=()/&%$\" ]", "", input_text)
     return input_text[0:160]
+
 
 def send_smsapi(apikey: str, phonenumber: str, sms_message: str) -> dict:
     """Envía un SMS utilizando la api de SMS-API
     https://ssl.smsapi.com/react/oauth/manage
     """
-    id, error, date_sent, points, number = '', None, None, 0.0, None
+    id, error, date_sent, points, number = "", None, None, 0.0, None
     client = SmsApiComClient(access_token=apikey)
 
     # send single sms
@@ -208,11 +215,11 @@ if __name__ == "__main__":
     TEST = os.environ.get("TEST") == "TRUE"
     if TEST:
         _info = send_smsapi(
-            apikey=os.environ.get('SMS_API_KEY'),
-            phonenumber='34656764922',
-            sms_message=os.environ.get('TEST_MESSAGE'),
+            apikey=os.environ.get("SMS_API_KEY"),
+            phonenumber="34656764922",
+            sms_message=os.environ.get("TEST_MESSAGE"),
         )
-        print('SMS de prueba enviado')
+        print("SMS de prueba enviado")
         sys.exit(0)
 
     try:
@@ -224,7 +231,9 @@ if __name__ == "__main__":
 
     info = []
     for key, value in _config.items():
-        filename = os.path.join(os.getcwd(), os.environ.get("ORIGIN"), value.get("filename"))
+        filename = os.path.join(
+            os.getcwd(), os.environ.get("ORIGIN"), value.get("filename")
+        )
         mensaje = value.get("mensaje")
         recipients = get_recipients(filename)
         if not recipients:
