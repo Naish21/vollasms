@@ -1,6 +1,6 @@
 """Modulo para envío de SMS automáticos"""
 
-__version__ = "0.8"
+a__version__ = "0.81"
 
 import base64
 import copy
@@ -195,7 +195,7 @@ def send_smsapi(apikey: str, phonenumber: str, sms_message: str) -> dict:
 
     for result in results:
         id = result.id
-        number = result.phonenumber
+        number = result.number
         points = result.points
         error = result.error
         date_sent = datetime.fromtimestamp(result.date_sent)
