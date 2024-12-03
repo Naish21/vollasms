@@ -185,6 +185,13 @@ def clear_text(input_text: str) -> str:
     input_text = input_text.replace("ú", "u")
     input_text = input_text.replace("º", "o")
     input_text = input_text.replace("ª", "a")
+    input_text = input_text.replace("Á", "A")
+    input_text = input_text.replace("É", "E")
+    input_text = input_text.replace("Í", "I")
+    input_text = input_text.replace("Ó", "O")
+    input_text = input_text.replace("Ú", "U")
+    input_text = input_text.replace("ñ", "n")
+    input_text = input_text.replace("Ñ", "N")
     input_text = re.sub("[^a-zA-Z0-9!¡?¿'=()/&%$.\" ]", "", input_text)
     return input_text[0:160]
 
