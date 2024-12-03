@@ -1,12 +1,13 @@
 """Modulo para envío de SMS automáticos"""
 
-a__version__ = "0.81"
+a__version__ = "0.82"
 
 import base64
 import copy
 import os
 import re
 import sys
+import traceback
 from datetime import datetime
 from string import Template
 
@@ -17,6 +18,7 @@ import sqlalchemy
 from dotenv import load_dotenv
 from ruamel.yaml import YAML
 from smsapi.client import SmsApiComClient
+from smsapi.exception import SendException
 from sqlalchemy import Table, Column, String, DateTime
 
 load_dotenv(".env")
@@ -122,12 +124,16 @@ def send_sms(recipients: list, text_to_send: str) -> list:
     information = []
     for recipient in recipients:
         sms_text = Template(text_to_send).substitute(nombre=recipient.get("name"))
-        _info = send_smsapi(
-            apikey=os.environ.get("SMS_API_KEY"),
-            phonenumber=recipient.get("phone"),
-            sms_message=sms_text,
-        )
-        information.append(_info)
+        try:
+            _info = send_smsapi(
+                apikey=os.environ.get("SMS_API_KEY"),
+                phonenumber=recipient.get("phone"),
+                sms_message=sms_text,
+            )
+            information.append(_info)
+        except SendException:
+            print("Error controlado en número de teléfono:", recipient.get("phone"))
+            traceback.print_exc()
     return information
 
 
@@ -179,7 +185,7 @@ def clear_text(input_text: str) -> str:
     input_text = input_text.replace("ú", "u")
     input_text = input_text.replace("º", "o")
     input_text = input_text.replace("ª", "a")
-    input_text = re.sub("[^a-zA-Z0-9!¡?¿'=()/&%$\" ]", "", input_text)
+    input_text = re.sub("[^a-zA-Z0-9!¡?¿'=()/&%$.\" ]", "", input_text)
     return input_text[0:160]
 
 
@@ -187,14 +193,14 @@ def send_smsapi(apikey: str, phonenumber: str, sms_message: str) -> dict:
     """Envía un SMS utilizando la api de SMS-API
     https://ssl.smsapi.com/react/oauth/manage
     """
-    id, error, date_sent, points, number = "", None, None, 0.0, None
+    _id, error, date_sent, points, number = "", None, None, 0.0, None
     client = SmsApiComClient(access_token=apikey)
 
     # send single sms
     results = client.sms.send(to=phonenumber, message=clear_text(sms_message))
 
     for result in results:
-        id = result.id
+        _id = result.id
         number = result.number
         points = result.points
         error = result.error
@@ -203,7 +209,7 @@ def send_smsapi(apikey: str, phonenumber: str, sms_message: str) -> dict:
     return {
         "outcome": "OK",
         "phone": number,
-        "id": id,
+        "id": _id,
         "on": date_sent,
         "message": error,
     }
