@@ -127,7 +127,7 @@ def send_sms(_recipients: list, text_to_send: str) -> list:
         try:
             _info = send_smsapi(
                 apikey=os.environ.get("SMS_API_KEY"),
-                phonenumber="34" + str(recipient.get("phone")),
+                phonenumber=recipient.get("phone"),
                 sms_message=sms_text,
             )
             information.append(_info)
