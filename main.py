@@ -1,6 +1,6 @@
 """Modulo para envío de SMS automáticos"""
 
-a__version__ = "0.83"
+__version__ = "0.83"
 
 import base64
 import copy
