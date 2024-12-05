@@ -1,6 +1,6 @@
 """Modulo para envío de SMS automáticos"""
 
-a__version__ = "0.82"
+a__version__ = "0.83"
 
 import base64
 import copy
@@ -119,33 +119,35 @@ def get_recipients(file: str) -> list[dict]:
     return get_recipient_list(read_csv_file(file))
 
 
-def send_sms(recipients: list, text_to_send: str) -> list:
+def send_sms(_recipients: list, text_to_send: str) -> list:
     """Envía un SMS"""
     information = []
-    for recipient in recipients:
+    for recipient in _recipients:
         sms_text = Template(text_to_send).substitute(nombre=recipient.get("name"))
         try:
             _info = send_smsapi(
                 apikey=os.environ.get("SMS_API_KEY"),
-                phonenumber=recipient.get("phone"),
+                phonenumber="34" + str(recipient.get("phone")),
                 sms_message=sms_text,
             )
             information.append(_info)
         except SendException:
             print("Error controlado en número de teléfono:", recipient.get("phone"))
             traceback.print_exc()
+        except TypeError:
+            pass
     return information
 
 
 def send_to_recipients(recipients: list, text_to_send: str, test: bool) -> list:
     """Añade un modo Test al envío de los sms"""
-    jorge = {"phone": "656764922", "name": "Jorge"}
+    jorge = {"phone": "34656764922", "name": "Jorge"}
     if test:
         rec = [jorge]
     else:
         rec = copy.deepcopy(recipients)
         rec.append(jorge)
-    return send_sms(recipients=rec, text_to_send=text_to_send)
+    return send_sms(_recipients=rec, text_to_send=text_to_send)
 
 
 def load_data_into_postgres(data: list[dict]) -> None:
