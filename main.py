@@ -1,6 +1,6 @@
 """Modulo para envío de SMS automáticos"""
 
-__version__ = "0.83"
+__version__ = "0.84"
 
 import base64
 import copy
@@ -119,14 +119,14 @@ def get_recipients(file: str) -> list[dict]:
     return get_recipient_list(read_csv_file(file))
 
 
-def send_sms(_recipients: list, text_to_send: str) -> list:
+def send_sms(_recipients: list, text_to_send: str, api_key: str) -> list:
     """Envía un SMS"""
     information = []
     for recipient in _recipients:
         sms_text = Template(text_to_send).substitute(nombre=recipient.get("name"))
         try:
             _info = send_smsapi(
-                apikey=os.environ.get("SMS_API_KEY"),
+                apikey=api_key,
                 phonenumber=recipient.get("phone"),
                 sms_message=sms_text,
             )
@@ -139,7 +139,7 @@ def send_sms(_recipients: list, text_to_send: str) -> list:
     return information
 
 
-def send_to_recipients(recipients: list, text_to_send: str, test: bool) -> list:
+def send_to_recipients(recipients: list, text_to_send: str, test: bool, api_key: str) -> list:
     """Añade un modo Test al envío de los sms"""
     jorge = {"phone": "34656764922", "name": "Jorge"}
     if test:
@@ -147,7 +147,7 @@ def send_to_recipients(recipients: list, text_to_send: str, test: bool) -> list:
     else:
         rec = copy.deepcopy(recipients)
         rec.append(jorge)
-    return send_sms(_recipients=rec, text_to_send=text_to_send)
+    return send_sms(_recipients=rec, text_to_send=text_to_send, api_key=api_key)
 
 
 def load_data_into_postgres(data: list[dict]) -> None:
@@ -249,12 +249,18 @@ if __name__ == "__main__":
         filename = os.path.join(
             os.getcwd(), os.environ.get("ORIGIN"), value.get("filename")
         )
+        api_key = value.get("api-key")
         mensaje = value.get("mensaje")
         recipients = get_recipients(filename)
         if not recipients:
             print("Sin teléfonos a los que enviar")
             sys.exit(1)
-        _info = send_to_recipients(recipients, mensaje, TEST)
+        _info = send_to_recipients(
+            recipients=recipients,
+            text_to_send=mensaje,
+            test=TEST,
+            api_key=api_key,
+        )
         info.extend(_info)
 
         if not TEST:
