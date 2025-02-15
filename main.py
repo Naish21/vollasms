@@ -1,6 +1,6 @@
 """Modulo para envío de SMS automáticos"""
 
-__version__ = "0.84"
+__version__ = "0.85"
 
 import base64
 import copy
@@ -140,7 +140,10 @@ def send_sms(_recipients: list, text_to_send: str, api_key: str) -> list:
 
 
 def send_to_recipients(recipients: list, text_to_send: str, test: bool, api_key: str) -> list:
-    """Añade un modo Test al envío de los sms"""
+    """Añade un modo Test al envío de los sms
+    ans tiene esta pinta:
+    [{'outcome': 'OK', 'phone': '34656764922', 'id': '67B0CCE7346263885DBDDD70', 'on': datetime.datetime(2025, 2, 15, 18, 20, 39), 'message': None}]
+    """
     jorge = {"phone": "34656764922", "name": "Jorge"}
     if test:
         rec = [jorge]
@@ -148,6 +151,7 @@ def send_to_recipients(recipients: list, text_to_send: str, test: bool, api_key:
         rec = copy.deepcopy(recipients)
         rec.append(jorge)
     return send_sms(_recipients=rec, text_to_send=text_to_send, api_key=api_key)
+
 
 
 def load_data_into_postgres(data: list[dict]) -> None:
@@ -214,13 +218,16 @@ def send_smsapi(apikey: str, phonenumber: str, sms_message: str) -> dict:
         points = result.points
         error = result.error
         date_sent = datetime.fromtimestamp(result.date_sent)
-
+    if error:
+        mensaje = error
+    else:
+        mensaje = sms_message
     return {
         "outcome": "OK",
         "phone": number,
         "id": _id,
         "on": date_sent,
-        "message": error,
+        "message": mensaje,
     }
 
 
